@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventario Tiendasmart</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; }
+    header { background:#0074d9; color:#fff; padding:1rem; text-align:center; }
+    nav { background:#eee; padding:.5rem; display:flex; gap:.5rem; flex-wrap:wrap; justify-content:center; }
+    nav button { padding:.5rem 1rem; border:none; background:#0074d9; color:white; border-radius:5px; cursor:pointer; }
+    nav button:hover { background:#005fa3; }
+    section { display:none; padding:1rem; }
+    section.active { display:block; }
+    input, select { margin:.3rem; padding:.4rem; }
+    table { border-collapse:collapse; width:100%; margin-top:1rem; background:white; }
+    th, td { border:1px solid #ccc; padding:.4rem; text-align:left; }
+    button.edit, button.delete { border:none; padding:.3rem .6rem; border-radius:4px; cursor:pointer; color:#fff; }
+    button.edit { background:#28a745; }
+    button.edit:hover { background:#1f7c34; }
+    button.delete { background:#dc3545; }
+    button.delete:hover { background:#a71d2a; }
+    .cards { display:flex; flex-wrap:wrap; gap:1rem; margin-top:1rem; }
+    .card { flex:1; min-width:200px; background:white; border-radius:10px; padding:1rem; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+    .card h3 { margin:0; font-size:1.1rem; }
+    .card p { font-size:1.4rem; font-weight:bold; }
+    .ventas { border-left:5px solid #0074d9; }
+    .compras { border-left:5px solid #dc3545; }
+    .ganancia { border-left:5px solid #28a745; }
+    #btnReiniciar { background:#dc3545; color:#fff; border:none; padding:.7rem 1.5rem; border-radius:6px; cursor:pointer; margin-top:1rem; }
+    #btnReiniciar:hover { background:#a71d2a; }
+  </style>
+</head>
+<body>
+  <header><h1>Inventario Tiendasmart</h1></header>
+  <nav>
+    <button id="btnResumen">Resumen</button>
+    <button id="btnProductos">Productos</button>
+    <button id="btnCompras">Compras</button>
+    <button id="btnVentas">Ventas</button>
+  </nav>
+
+  <!-- SECCIÓN RESUMEN -->
+  <section id="resumen" class="active">
+    <h2>Resumen General</h2>
+    <div class="cards">
+      <div class="card ventas"><h3>Total Ventas</h3><p id="totalVentas">$0</p></div>
+      <div class="card compras"><h3>Total Compras</h3><p id="totalCompras">$0</p></div>
+      <div class="card ganancia"><h3>Total Ganancia</h3><p id="totalGanancia">$0</p></div>
+    </div>
+    <h3>Últimos Movimientos</h3>
+    <table id="tablaResumen"><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Monto</th></tr></thead><tbody></tbody></table>
+    <button id="btnReiniciar">Reiniciar Todo</button>
+  </section>
+
+  <!-- SECCIÓN PRODUCTOS -->
+  <section id="productos">
+    <h2>Productos</h2>
+    <input id="nombreProd" placeholder="Nombre del producto">
+    <input id="codigoProd" placeholder="Código del producto">
+    <input id="stockProd" type="number" placeholder="Stock inicial">
+    <button id="btnAgregarProd">Agregar Producto</button>
+    <table id="tablaProductos"><thead><tr><th>Nombre</th><th>Código</th><th>Stock</th><th>Editar</th><th>Borrar</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <!-- SECCIÓN COMPRAS -->
+  <section id="compras">
+    <h2>Registrar Compra</h2>
+    <input id="provCompra" placeholder="Proveedor">
+    <select id="prodCompra"></select>
+    <input id="cantCompra" type="number" placeholder="Cantidad">
+    <input id="costoCompra" type="number" placeholder="Costo unitario">
+    <button id="btnRegistrarCompra">Registrar Compra</button>
+    <table id="tablaCompras"><thead><tr><th>Fecha</th><th>Proveedor</th><th>Producto</th><th>Cantidad</th><th>Costo Unitario</th><th>Total</th><th>Editar</th><th>Borrar</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <!-- SECCIÓN VENTAS -->
+  <section id="ventas">
+    <h2>Registrar Venta</h2>
+    <select id="prodVenta"></select>
+    <input id="cantVenta" type="number" placeholder="Cantidad">
+    <input id="precioVenta" type="number" placeholder="Precio por unidad">
+    <button id="btnRegistrarVenta">Registrar Venta</button>
+    <table id="tablaVentas"><thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Precio Unidad</th><th>Total Venta</th><th>Ganancia</th><th>Stock Restante</th><th>Editar</th><th>Borrar</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <script>
+    document.addEventListener('DOMContentLoaded',()=>{
+      const data = {
+        productos: JSON.parse(localStorage.getItem('productos')||'[]'),
+        compras: JSON.parse(localStorage.getItem('compras')||'[]'),
+        ventas: JSON.parse(localStorage.getItem('ventas')||'[]')
+      };
+      const guardar=()=>{ for(const k in data) localStorage.setItem(k, JSON.stringify(data[k])); };
+
+      function show(id){ document.querySelectorAll('section').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+      document.getElementById('btnResumen').onclick=()=>{ show('resumen'); renderResumen(); };
+      document.getElementById('btnProductos').onclick=()=>show('productos');
+      document.getElementById('btnCompras').onclick=()=>show('compras');
+      document.getElementById('btnVentas').onclick=()=>show('ventas');
+
+      const renderProductos=()=>{
+        const tbody=document.querySelector('#tablaProductos tbody');
+        tbody.innerHTML=data.productos.map((p,i)=>`<tr><td>${p.nombre}</td><td>${p.codigo}</td><td>${p.stock}</td><td><button class='edit' data-index='${i}' data-type='producto'>Editar</button></td><td><button class='delete' data-index='${i}' data-type='producto'>Borrar</button></td></tr>`).join('');
+      };
+
+      const renderCompras=()=>{
+        const tbody=document.querySelector('#tablaCompras tbody');
+        tbody.innerHTML=data.compras.map((c,i)=>`<tr><td>${c.fecha}</td><td>${c.proveedor}</td><td>${c.producto}</td><td>${c.cantidad}</td><td>${c.costo}</td><td>${c.total}</td><td><button class='edit' data-index='${i}' data-type='compra'>Editar</button></td><td><button class='delete' data-index='${i}' data-type='compra'>Borrar</button></td></tr>`).join('');
+      };
+
+      const renderVentas=()=>{
+        const tbody=document.querySelector('#tablaVentas tbody');
+        tbody.innerHTML=data.ventas.map((v,i)=>`<tr><td>${v.fecha}</td><td>${v.producto}</td><td>${v.cantidad}</td><td>${v.precio}</td><td>${v.total}</td><td>${v.ganancia}</td><td>${v.stockRestante}</td><td><button class='edit' data-index='${i}' data-type='venta'>Editar</button></td><td><button class='delete' data-index='${i}' data-type='venta'>Borrar</button></td></tr>`).join('');
+      };
+
+      const actualizarSelects=()=>{
+        const opciones='<option>Seleccione producto</option>'+data.productos.map(p=>`<option>${p.nombre}</option>`).join('');
+        document.getElementById('prodCompra').innerHTML=opciones;
+        document.getElementById('prodVenta').innerHTML=opciones;
+      };
+
+      document.getElementById('btnAgregarProd').onclick=()=>{
+        const nombre=document.getElementById('nombreProd').value.trim();
+        const codigo=document.getElementById('codigoProd').value.trim();
+        const stock=+document.getElementById('stockProd').value||0;
+        if(!nombre||!codigo)return alert('Complete los campos');
+        data.productos.push({nombre,codigo,stock,costo:0,precio:0});
+        guardar();renderProductos();actualizarSelects();
+        document.getElementById('nombreProd').value='';document.getElementById('codigoProd').value='';document.getElementById('stockProd').value='';
+      };
+
+      document.getElementById('btnRegistrarCompra').onclick=()=>{
+        const proveedor=document.getElementById('provCompra').value.trim();
+        const prodIdx=document.getElementById('prodCompra').selectedIndex-1;
+        if(!proveedor||prodIdx<0)return alert('Complete todos los campos');
+        const cantidad=+document.getElementById('cantCompra').value||0;const costo=+document.getElementById('costoCompra').value||0;
+        const producto=data.productos[prodIdx];producto.stock+=cantidad;producto.costo=costo;
+        const total=cantidad*costo;
+        data.compras.push({fecha:new Date().toLocaleString(),proveedor,producto:producto.nombre,cantidad,costo,total});
+        guardar();renderCompras();renderProductos();actualizarSelects();
+      };
+
+      document.getElementById('btnRegistrarVenta').onclick=()=>{
+        const prodIdx=document.getElementById('prodVenta').selectedIndex-1;
+        if(prodIdx<0)return alert('Seleccione producto');
+        const cantidad=+document.getElementById('cantVenta').value||0;const precio=+document.getElementById('precioVenta').value||0;
+        const producto=data.productos[prodIdx];if(cantidad>producto.stock)return alert('No hay suficiente stock');
+        producto.stock-=cantidad;const total=cantidad*precio;const ganancia=(precio-producto.costo)*cantidad;
+        data.ventas.push({fecha:new Date().toLocaleString(),producto:producto.nombre,cantidad,precio,total,ganancia,stockRestante:producto.stock});
+        guardar();renderVentas();renderProductos();actualizarSelects();
+      };
+
+      // Editar y eliminar
+      document.body.addEventListener('click',e=>{
+        if(e.target.classList.contains('edit')){
+          const idx=+e.target.dataset.index;const tipo=e.target.dataset.type;
+          if(tipo==='producto'){
+            const p=data.productos[idx];
+            p.nombre=prompt('Nuevo nombre',p.nombre)||p.nombre;
+            p.codigo=prompt('Nuevo código',p.codigo)||p.codigo;
+            p.stock=+prompt('Nuevo stock',p.stock)||p.stock;
+            guardar();renderProductos();actualizarSelects();
+          }
+          if(tipo==='compra'){
+            const c=data.compras[idx];
+            c.cantidad=+prompt('Nueva cantidad',c.cantidad)||c.cantidad;
+            c.costo=+prompt('Nuevo costo unitario',c.costo)||c.costo;
+            c.total=c.cantidad*c.costo;
+            guardar();renderCompras();
+          }
+          if(tipo==='venta'){
+            const v=data.ventas[idx];
+            v.cantidad=+prompt('Nueva cantidad',v.cantidad)||v.cantidad;
+            v.precio=+prompt('Nuevo precio',v.precio)||v.precio;
+            v.total=v.cantidad*v.precio;
+            v.ganancia=(v.precio-(v.costo||0))*v.cantidad;
+            guardar();renderVentas();
+          }
+        }
+        if(e.target.classList.contains('delete')){
+          const idx=+e.target.dataset.index;const tipo=e.target.dataset.type;
+          if(confirm('¿Borrar este registro?')){
+            data[tipo+'s'].splice(idx,1);
+            guardar();renderProductos();renderCompras();renderVentas();actualizarSelects();
+          }
+        }
+      });
+
+      // Render del resumen
+      function renderResumen(){
+        const totalVentas=data.ventas.reduce((a,b)=>a+b.total,0);
+        const totalCompras=data.compras.reduce((a,b)=>a+b.total,0);
+        const totalGanancia=data.ventas.reduce((a,b)=>a+b.ganancia,0);
+        document.getElementById('totalVentas').textContent='$'+totalVentas.toFixed(2);
+        document.getElementById('totalCompras').textContent='$'+totalCompras.toFixed(2);
+        document.getElementById('totalGanancia').textContent='$'+totalGanancia.toFixed(2);
+        const movimientos=[
+          ...data.compras.map(c=>({fecha:c.fecha,tipo:'Compra',detalle:c.producto,monto:c.total})),
+          ...data.ventas.map(v=>({fecha:v.fecha,tipo:'Venta',detalle:v.producto,monto:v.total}))
+        ].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,10);
+        document.querySelector('#tablaResumen tbody').innerHTML=movimientos.map(m=>`<tr><td>${m.fecha}</td><td>${m.tipo}</td><td>${m.detalle}</td><td>$${m.monto}</td></tr>`).join('');
+      }
+
+      document.getElementById('btnReiniciar').onclick=()=>{
+        if(confirm('¿Seguro que deseas reiniciar todo?')){
+          localStorage.clear();
+          data.productos=[];data.compras=[];data.ventas=[];
+          renderProductos();renderCompras();renderVentas();renderResumen();actualizarSelects();
+        }
+      };
+
+      renderProductos();renderCompras();renderVentas();actualizarSelects();renderResumen();
+    });
+  </script>
+</body>
+</html>
